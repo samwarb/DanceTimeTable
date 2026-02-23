@@ -46,6 +46,7 @@ header {
   object-fit: contain;
   display: block;
   margin: 0 auto 10px;
+  mix-blend-mode: screen;
   filter: drop-shadow(0 0 18px rgba(45, 224, 200, 0.5));
 }
 
