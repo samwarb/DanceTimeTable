@@ -58,12 +58,56 @@ This keeps it open for your family. If you want to restrict it further, Firebase
 
 ---
 
-## Enabling GitHub Pages
+## Hosting options
+
+### Option A — GitHub Pages (simplest)
 
 1. Push this repo to GitHub.
 2. Go to **Settings → Pages**.
 3. Under **Source**, choose `main` branch, root folder (`/`).
 4. Click **Save** — your site will be live at `https://<username>.github.io/<repo>/`.
+
+### Option B — Firebase Hosting (recommended with Firebase database)
+
+Hosting the app on Firebase gives you a clean `*.web.app` URL and keeps everything in one place.
+
+#### Prerequisites
+- [Node.js](https://nodejs.org) (v18+) installed on your machine
+- Firebase CLI — install once with: `npm install -g firebase-tools`
+
+#### Steps
+
+1. **Log in to Firebase**
+   ```bash
+   firebase login
+   ```
+
+2. **Set your project ID in `.firebaserc`**
+
+   Open `.firebaserc` and replace `REPLACE_WITH_YOUR_PROJECT_ID` with your actual Firebase project ID (found in **Project settings → General → Project ID**):
+   ```json
+   {
+     "projects": {
+       "default": "dance-timetable"
+     }
+   }
+   ```
+
+3. **Deploy**
+   ```bash
+   firebase deploy --only hosting
+   ```
+   The CLI will print your live URL — something like:
+   ```
+   Hosting URL: https://dance-timetable.web.app
+   ```
+
+4. **Re-deploy after any change**
+   ```bash
+   firebase deploy --only hosting
+   ```
+
+> **Tip:** Add the live URL as the authorized domain in Firebase → Authentication → Settings → Authorized domains if you later add Firebase Auth.
 
 ---
 
