@@ -147,8 +147,8 @@ header h1 { font-size: 1.6rem; font-weight: 700; }
   text-align: right;
   line-height: 1.3;
 }
-.card-time .start { font-size: .95rem; font-weight: 700; color: #333; }
-.card-time .end   { font-size: .75rem; color: #888; }
+.card-time .start { font-size: 1.05rem; font-weight: 700; color: #333; }
+.card-time .end   { font-size: 1.05rem; font-weight: 700; color: #888; }
 
 /* Content column */
 .card-body { flex: 1; }
