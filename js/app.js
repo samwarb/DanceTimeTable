@@ -2,13 +2,13 @@
 // Replace these values with your own Firebase project credentials.
 // See README.md for setup instructions.
 const FIREBASE_CONFIG = {
-  apiKey:            "REPLACE_WITH_YOUR_API_KEY",
-  authDomain:        "REPLACE_WITH_YOUR_AUTH_DOMAIN",
-  databaseURL:       "REPLACE_WITH_YOUR_DATABASE_URL",
-  projectId:         "REPLACE_WITH_YOUR_PROJECT_ID",
-  storageBucket:     "REPLACE_WITH_YOUR_STORAGE_BUCKET",
-  messagingSenderId: "REPLACE_WITH_YOUR_MESSAGING_SENDER_ID",
-  appId:             "REPLACE_WITH_YOUR_APP_ID"
+  apiKey:            "AIzaSyC5H6W_fPa0nk3oB2kCXNQW4fs1jc0vOKk",
+  authDomain:        "dance-timetable.firebaseapp.com",
+  databaseURL:       "https://dance-timetable-default-rtdb.firebaseio.com",
+  projectId:         "dance-timetable",
+  storageBucket:     "dance-timetable.firebasestorage.app",
+  messagingSenderId: "321760637093",
+  appId:             "1:321760637093:web:105476ea59651764bc9d4c"
 };
 
 // ── State ─────────────────────────────────────────────────────────
