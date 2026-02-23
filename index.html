@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dance Timetable</title>
+  <title>EJB Choreography – Dance Timetable</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
 
   <header>
-    <h1>💃 Dance Timetable</h1>
+    <img class="header-logo" src="images/logo.png" alt="EJB Choreography" onerror="this.style.display='none'" />
+    <h1>Dance Timetable</h1>
     <p class="subtitle">Aubree · Nelly · Winnie</p>
   </header>
 
@@ -74,15 +75,26 @@
         </label>
 
         <label>Start time
-          <input type="time" id="p-start" required />
+          <select id="p-start" required></select>
         </label>
 
         <label>End time
-          <input type="time" id="p-end" required />
+          <select id="p-end" required></select>
         </label>
 
         <label>Description
           <input type="text" id="p-desc" placeholder="e.g. Ballet private – Miss Sarah" required />
+        </label>
+
+        <label>Type
+          <div class="type-toggle">
+            <button type="button" class="type-btn active" id="type-recurring">🔁 Recurring</button>
+            <button type="button" class="type-btn" id="type-oneoff">📅 One-off</button>
+          </div>
+        </label>
+
+        <label id="date-row" style="display:none">Date
+          <input type="date" id="p-date" />
         </label>
 
         <div class="modal-actions">

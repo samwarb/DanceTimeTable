@@ -1,6 +1,4 @@
 // ── Firebase config ──────────────────────────────────────────────
-// Replace these values with your own Firebase project credentials.
-// See README.md for setup instructions.
 const FIREBASE_CONFIG = {
   apiKey:            "AIzaSyC5H6W_fPa0nk3oB2kCXNQW4fs1jc0vOKk",
   authDomain:        "dance-timetable.firebaseapp.com",
@@ -56,6 +54,24 @@ function fmt(time24) {
   return m === 0 ? `${h12}${suffix}` : `${h12}:${String(m).padStart(2,'0')}${suffix}`;
 }
 
+function formatDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+// Build <option> list for time selects (07:00–22:00, 15-min steps)
+function buildTimeOptions() {
+  const opts = ['<option value="">Select time…</option>'];
+  for (let h = 7; h <= 22; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      if (h === 22 && m > 0) break;
+      const val = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+      opts.push(`<option value="${val}">${fmt(val)}</option>`);
+    }
+  }
+  return opts.join('');
+}
+
 function sortedLessons(lessons) {
   return [...lessons].sort((a, b) => a.start.localeCompare(b.start));
 }
@@ -70,8 +86,8 @@ let currentChild = 'Aubree';
 let currentView  = 'day';
 
 function render() {
-  if (currentView === 'day')   renderDayView();
-  else                         renderChildView();
+  if (currentView === 'day') renderDayView();
+  else                       renderChildView();
 }
 
 function renderDayView() {
@@ -117,6 +133,8 @@ function getLessonsForDay(day, filterChild = null) {
       title:     l.desc,
       children:  [l.child],
       isPrivate: true,
+      recurring: l.recurring !== false,   // default true for existing data
+      date:      l.date || null,
     }));
 
   return [...fixed, ...privs];
@@ -130,10 +148,11 @@ function cardHTML(lesson, hideChildren = false) {
     ? `style="--stripe: linear-gradient(to bottom, ${lesson.children.map(c => `var(--${c.toLowerCase()})`).join(', ')})"`
     : '';
 
-  const pills   = hideChildren ? '' : `<div class="card-children">${lesson.children.map(childPill).join('')}</div>`;
-  const privBadge = lesson.isPrivate
-    ? `<span class="badge-private">Private</span>` : '';
-  const editBtn   = lesson.isPrivate
+  const pills      = hideChildren ? '' : `<div class="card-children">${lesson.children.map(childPill).join('')}</div>`;
+  const privBadge  = lesson.isPrivate ? `<span class="badge-private">Private</span>` : '';
+  const oneoffBadge = (lesson.isPrivate && lesson.recurring === false && lesson.date)
+    ? `<span class="badge-oneoff">📅 ${formatDate(lesson.date)}</span>` : '';
+  const editBtn    = lesson.isPrivate
     ? `<button class="btn-edit" data-id="${lesson.id}" title="Edit">✏️</button>` : '';
 
   return `
@@ -143,7 +162,7 @@ function cardHTML(lesson, hideChildren = false) {
       <div class="end">${fmt(lesson.end)}</div>
     </div>
     <div class="card-body">
-      <div class="card-title">${lesson.title}${privBadge}</div>
+      <div class="card-title">${lesson.title}${privBadge}${oneoffBadge}</div>
       ${pills}
     </div>
     ${editBtn}
@@ -157,6 +176,15 @@ function attachEditListeners(container) {
 }
 
 // ── Modal ─────────────────────────────────────────────────────────
+function setLessonType(type) {
+  document.getElementById('type-recurring').classList.toggle('active', type === 'recurring');
+  document.getElementById('type-oneoff').classList.toggle('active', type === 'oneoff');
+  const dateRow = document.getElementById('date-row');
+  const dateInput = document.getElementById('p-date');
+  dateRow.style.display  = type === 'oneoff' ? 'flex' : 'none';
+  dateInput.required     = type === 'oneoff';
+}
+
 function openModal(editId = null) {
   const overlay  = document.getElementById('modal-overlay');
   const titleEl  = document.getElementById('modal-title');
@@ -165,19 +193,22 @@ function openModal(editId = null) {
 
   if (editId) {
     const l = privateLesson[editId];
-    titleEl.textContent        = 'Edit Private Lesson';
-    editIdEl.value             = editId;
+    titleEl.textContent = 'Edit Private Lesson';
+    editIdEl.value      = editId;
     document.getElementById('p-child').value = l.child;
     document.getElementById('p-day').value   = l.day;
     document.getElementById('p-start').value = l.start;
     document.getElementById('p-end').value   = l.end;
     document.getElementById('p-desc').value  = l.desc;
+    setLessonType(l.recurring === false ? 'oneoff' : 'recurring');
+    document.getElementById('p-date').value  = l.date || '';
     delBtn.style.display = 'inline-block';
   } else {
     titleEl.textContent = 'Add Private Lesson';
     editIdEl.value      = '';
     document.getElementById('private-form').reset();
-    // Pre-fill day to currently viewed day
+    setLessonType('recurring');
+    document.getElementById('p-date').value = '';
     if (currentView === 'day')
       document.getElementById('p-day').value = currentDay;
     if (currentView === 'child')
@@ -224,6 +255,15 @@ function showSyncStatus(msg, duration = 2000) {
 
 // ── Event wiring ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+
+  // Populate time selects
+  const timeHtml = buildTimeOptions();
+  document.getElementById('p-start').innerHTML = timeHtml;
+  document.getElementById('p-end').innerHTML   = timeHtml;
+
+  // Type toggle buttons
+  document.getElementById('type-recurring').addEventListener('click', () => setLessonType('recurring'));
+  document.getElementById('type-oneoff').addEventListener('click',    () => setLessonType('oneoff'));
 
   // View toggle
   document.querySelectorAll('.view-btn').forEach(btn => {
@@ -279,14 +319,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Form submit
   document.getElementById('private-form').addEventListener('submit', e => {
     e.preventDefault();
-    const id   = document.getElementById('edit-id').value || null;
+    const id      = document.getElementById('edit-id').value || null;
+    const isOneoff = document.getElementById('type-oneoff').classList.contains('active');
     const data = {
-      child: document.getElementById('p-child').value,
-      day:   document.getElementById('p-day').value,
-      start: document.getElementById('p-start').value,
-      end:   document.getElementById('p-end').value,
-      desc:  document.getElementById('p-desc').value.trim(),
+      child:     document.getElementById('p-child').value,
+      day:       document.getElementById('p-day').value,
+      start:     document.getElementById('p-start').value,
+      end:       document.getElementById('p-end').value,
+      desc:      document.getElementById('p-desc').value.trim(),
+      recurring: !isOneoff,
     };
+    if (isOneoff) {
+      data.date = document.getElementById('p-date').value;
+    }
     savePrivate(data, id);
     closeModal();
     showSyncStatus(id ? 'Lesson updated ✓' : 'Lesson added ✓');
