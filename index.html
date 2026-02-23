@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dance Timetable</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header>
+    <h1>💃 Dance Timetable</h1>
+    <p class="subtitle">Aubree · Nelly · Winnie</p>
+  </header>
+
+  <!-- View Toggle -->
+  <div class="view-toggle">
+    <button class="view-btn active" data-view="day">By Day</button>
+    <button class="view-btn" data-view="child">By Child</button>
+  </div>
+
+  <!-- ── BY DAY VIEW ── -->
+  <div id="view-day" class="view active">
+    <div class="tab-bar" id="day-tabs">
+      <button class="tab active" data-day="Monday">Mon</button>
+      <button class="tab" data-day="Tuesday">Tue</button>
+      <button class="tab" data-day="Wednesday">Wed</button>
+      <button class="tab" data-day="Thursday">Thu</button>
+      <button class="tab" data-day="Friday">Fri</button>
+      <button class="tab" data-day="Saturday">Sat</button>
+    </div>
+    <div id="day-content" class="content-area"></div>
+  </div>
+
+  <!-- ── BY CHILD VIEW ── -->
+  <div id="view-child" class="view">
+    <div class="tab-bar" id="child-tabs">
+      <button class="tab active aubree-tab" data-child="Aubree">Aubree</button>
+      <button class="tab nelly-tab" data-child="Nelly">Nelly</button>
+      <button class="tab winnie-tab" data-child="Winnie">Winnie</button>
+    </div>
+    <div id="child-content" class="content-area"></div>
+  </div>
+
+  <!-- Add Private Lesson FAB -->
+  <button class="fab" id="fab-add" title="Add private lesson">＋</button>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <h2 id="modal-title">Add Private Lesson</h2>
+      <form id="private-form">
+        <input type="hidden" id="edit-id" />
+
+        <label>Child
+          <select id="p-child" required>
+            <option value="">Select…</option>
+            <option value="Aubree">Aubree</option>
+            <option value="Nelly">Nelly</option>
+            <option value="Winnie">Winnie</option>
+          </select>
+        </label>
+
+        <label>Day
+          <select id="p-day" required>
+            <option value="">Select…</option>
+            <option value="Monday">Monday</option>
+            <option value="Tuesday">Tuesday</option>
+            <option value="Wednesday">Wednesday</option>
+            <option value="Thursday">Thursday</option>
+            <option value="Friday">Friday</option>
+            <option value="Saturday">Saturday</option>
+          </select>
+        </label>
+
+        <label>Start time
+          <input type="time" id="p-start" required />
+        </label>
+
+        <label>End time
+          <input type="time" id="p-end" required />
+        </label>
+
+        <label>Description
+          <input type="text" id="p-desc" placeholder="e.g. Ballet private – Miss Sarah" required />
+        </label>
+
+        <div class="modal-actions">
+          <button type="submit" class="btn-save">Save</button>
+          <button type="button" class="btn-delete" id="btn-delete" style="display:none">Delete</button>
+          <button type="button" class="btn-cancel" id="btn-cancel">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Sync status -->
+  <div id="sync-status"></div>
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+  <script src="js/schedule.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
