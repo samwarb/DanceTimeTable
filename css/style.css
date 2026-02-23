@@ -88,6 +88,38 @@ header h1 {
 .view { display: none; }
 .view.active { display: block; }
 
+/* ── Week navigation ── */
+.week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 10px 16px 4px;
+}
+.week-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--teal);
+  font-size: 1.5rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background .15s;
+}
+.week-btn:active { background: var(--teal-glow); }
+.week-label {
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 110px;
+  text-align: center;
+}
+
 /* ── Tab bar ── */
 .tab-bar {
   display: flex;

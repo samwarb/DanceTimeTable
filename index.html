@@ -22,6 +22,11 @@
 
   <!-- ── BY DAY VIEW ── -->
   <div id="view-day" class="view active">
+    <div class="week-nav">
+      <button class="week-btn" id="week-prev">&#8249;</button>
+      <span class="week-label" id="week-label">w/c …</span>
+      <button class="week-btn" id="week-next">&#8250;</button>
+    </div>
     <div class="tab-bar" id="day-tabs">
       <button class="tab active" data-day="Monday">Mon</button>
       <button class="tab" data-day="Tuesday">Tue</button>
@@ -29,6 +34,7 @@
       <button class="tab" data-day="Thursday">Thu</button>
       <button class="tab" data-day="Friday">Fri</button>
       <button class="tab" data-day="Saturday">Sat</button>
+      <button class="tab" data-day="Sunday">Sun</button>
     </div>
     <div id="day-content" class="content-area"></div>
   </div>
@@ -71,6 +77,7 @@
             <option value="Thursday">Thursday</option>
             <option value="Friday">Friday</option>
             <option value="Saturday">Saturday</option>
+            <option value="Sunday">Sunday</option>
           </select>
         </label>
 
@@ -78,8 +85,8 @@
           <select id="p-start" required></select>
         </label>
 
-        <label>End time
-          <select id="p-end" required></select>
+        <label>Duration
+          <select id="p-duration" required></select>
         </label>
 
         <label>Description

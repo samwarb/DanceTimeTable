@@ -42,5 +42,5 @@ const SCHEDULE = [
 
 ];
 
-const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const CHILDREN = ['Aubree','Nelly','Winnie'];
