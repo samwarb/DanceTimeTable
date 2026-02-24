@@ -18,6 +18,7 @@ let currentChild     = 'Aubree';
 let currentView      = 'day';
 let currentWeekOffset = 0;   // 0 = this week, -1 = last week, +1 = next week
 let extraClasses     = {};   // user-added class names { key: { title } }
+let deletedBuiltins  = {};   // deleted built-in class names { key: 'ClassName' }
 
 // ── Init Firebase ─────────────────────────────────────────────────
 function initFirebase() {
@@ -38,6 +39,10 @@ function initFirebase() {
       extraClasses = snapshot.val() || {};
       render();
     });
+    db.ref('deletedBuiltins').on('value', snapshot => {
+      deletedBuiltins = snapshot.val() || {};
+      render();
+    });
     showSyncStatus("Connected – lessons will sync live", 2500);
   } catch (e) {
     console.error(e);
@@ -47,8 +52,9 @@ function initFirebase() {
 }
 
 function loadFromLocalStorage() {
-  try { privateLesson = JSON.parse(localStorage.getItem('dance_privates') || '{}'); } catch { privateLesson = {}; }
-  try { extraClasses  = JSON.parse(localStorage.getItem('dance_extra')    || '{}'); } catch { extraClasses  = {}; }
+  try { privateLesson   = JSON.parse(localStorage.getItem('dance_privates') || '{}'); } catch { privateLesson   = {}; }
+  try { extraClasses    = JSON.parse(localStorage.getItem('dance_extra')    || '{}'); } catch { extraClasses    = {}; }
+  try { deletedBuiltins = JSON.parse(localStorage.getItem('dance_deleted')  || '{}'); } catch { deletedBuiltins = {}; }
   render();
 }
 
@@ -58,6 +64,10 @@ function saveToLocalStorage() {
 
 function saveExtraClassesToLocalStorage() {
   localStorage.setItem('dance_extra', JSON.stringify(extraClasses));
+}
+
+function saveDeletedToLocalStorage() {
+  localStorage.setItem('dance_deleted', JSON.stringify(deletedBuiltins));
 }
 
 // ── Display helpers ───────────────────────────────────────────────
@@ -288,8 +298,9 @@ function attachEditListeners(container) {
 
 // ── Class pool ────────────────────────────────────────────────────
 function getClassPool() {
+  const deletedSet = new Set(Object.values(deletedBuiltins));
   const titles = new Set();
-  SCHEDULE.forEach(l => titles.add(l.title));
+  SCHEDULE.forEach(l => { if (!deletedSet.has(l.title)) titles.add(l.title); });
   Object.values(extraClasses).forEach(c => { if (c.title) titles.add(c.title); });
   return [...titles].sort();
 }
@@ -333,7 +344,7 @@ function openModal(editId = null) {
 
   if (editId) {
     const l = privateLesson[editId];
-    titleEl.textContent = 'Edit Private Lesson';
+    titleEl.textContent = 'Edit Lesson';
     editIdEl.value      = editId;
     document.getElementById('p-child').value = l.child;
     document.getElementById('p-day').value   = l.day;
@@ -346,7 +357,7 @@ function openModal(editId = null) {
     document.getElementById('p-date').value  = l.date || '';
     delBtn.style.display = 'inline-block';
   } else {
-    titleEl.textContent = 'Add Private Lesson';
+    titleEl.textContent = 'Add Lesson';
     editIdEl.value      = '';
     document.getElementById('private-form').reset();
     // Default duration to 1 hr
@@ -391,7 +402,20 @@ function deletePrivate(id) {
 // ── Extra class library helpers ───────────────────────────────────
 function addExtraClass(title) {
   title = title.trim();
-  if (!title || getClassPool().includes(title)) return;
+  if (!title) return;
+  // If it was a deleted built-in, restore it instead of adding as extra
+  const deletedEntry = Object.entries(deletedBuiltins).find(([, t]) => t === title);
+  if (deletedEntry) {
+    if (db) {
+      db.ref(`deletedBuiltins/${deletedEntry[0]}`).remove().catch(console.error);
+    } else {
+      delete deletedBuiltins[deletedEntry[0]];
+      saveDeletedToLocalStorage();
+      render();
+    }
+    return;
+  }
+  if (getClassPool().includes(title)) return;
   const data = { title };
   if (db) {
     db.ref('extraClasses').push().set(data).catch(console.error);
@@ -412,6 +436,23 @@ function deleteExtraClass(id) {
   }
 }
 
+function deleteClass(title) {
+  // Check if it's a user-added extra class
+  const extraEntry = Object.entries(extraClasses).find(([, c]) => c.title === title);
+  if (extraEntry) {
+    deleteExtraClass(extraEntry[0]);
+  } else {
+    // It's a built-in — mark as deleted
+    if (db) {
+      db.ref('deletedBuiltins').push().set(title).catch(console.error);
+    } else {
+      deletedBuiltins['local_db_' + Date.now()] = title;
+      saveDeletedToLocalStorage();
+      render();
+    }
+  }
+}
+
 function showSyncStatus(msg, duration = 2000) {
   const el = document.getElementById('sync-status');
   el.textContent = msg;
@@ -425,30 +466,21 @@ function renderManageModal() {
   if (!overlay || !overlay.classList.contains('open')) return;
   const container = document.getElementById('manage-content');
 
-  const extraTitles = new Map(
-    Object.entries(extraClasses).map(([id, c]) => [c.title, id])
-  );
   const pool = getClassPool();
 
   if (!pool.length) {
-    container.innerHTML = '<p class="empty">No classes defined yet.</p>';
+    container.innerHTML = '<p class="empty">No classes in library. Add one below.</p>';
     return;
   }
 
-  container.innerHTML = pool.map(title => {
-    const extraId = extraTitles.get(title);
-    return `
-      <div class="manage-class-row">
-        <span class="manage-class-name">${title}</span>
-        ${extraId
-          ? `<button class="manage-btn remove" data-extra-id="${extraId}" title="Remove">✕</button>`
-          : `<span class="manage-class-builtin" title="Built into schedule">📌</span>`
-        }
-      </div>`;
-  }).join('');
+  container.innerHTML = pool.map(title => `
+    <div class="manage-class-row">
+      <span class="manage-class-name">${title}</span>
+      <button class="manage-btn remove" data-title="${title}" title="Remove">✕</button>
+    </div>`).join('');
 
   container.querySelectorAll('.manage-btn.remove').forEach(btn => {
-    btn.addEventListener('click', () => deleteExtraClass(btn.dataset.extraId));
+    btn.addEventListener('click', () => deleteClass(btn.dataset.title));
   });
 }
 
