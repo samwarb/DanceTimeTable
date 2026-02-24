@@ -265,8 +265,31 @@ header h1 {
   margin-left: 6px;
 }
 
-/* Edit button */
-.btn-edit {
+/* Child toggle buttons (multi-select) */
+.child-toggle {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.child-btn {
+  flex: 1;
+  padding: 9px 0;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.child-btn.aubree-btn.active { background: var(--aubree); border-color: var(--aubree); color: #fff; }
+.child-btn.nelly-btn.active  { background: var(--nelly);  border-color: var(--nelly);  color: #fff; }
+.child-btn.winnie-btn.active { background: var(--winnie); border-color: var(--winnie); color: #0a0a14; }
+
+/* Edit button (private lessons and built-in) */
+.btn-edit,
+.btn-edit-builtin {
   background: none;
   border: none;
   cursor: pointer;
@@ -277,7 +300,8 @@ header h1 {
   align-self: flex-start;
   margin-left: auto;
 }
-.btn-edit:hover { color: var(--private); }
+.btn-edit:hover,
+.btn-edit-builtin:hover { color: var(--teal); }
 
 /* Empty state */
 .empty { text-align: center; padding: 32px 16px; color: var(--text-muted); font-size: .95rem; }

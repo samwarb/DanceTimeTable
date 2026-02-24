@@ -61,12 +61,11 @@
         <input type="hidden" id="edit-id" />
 
         <label>Child
-          <select id="p-child" required>
-            <option value="">Select…</option>
-            <option value="Aubree">Aubree</option>
-            <option value="Nelly">Nelly</option>
-            <option value="Winnie">Winnie</option>
-          </select>
+          <div class="child-toggle" id="child-toggle">
+            <button type="button" class="child-btn aubree-btn" data-child="Aubree">Aubree</button>
+            <button type="button" class="child-btn nelly-btn" data-child="Nelly">Nelly</button>
+            <button type="button" class="child-btn winnie-btn" data-child="Winnie">Winnie</button>
+          </div>
         </label>
 
         <label>Day
