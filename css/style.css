@@ -181,7 +181,6 @@ header h1 {
 .card.aubree  { border-color: var(--aubree); }
 .card.nelly   { border-color: var(--nelly);  }
 .card.winnie  { border-color: var(--winnie); }
-.card.private { border-color: var(--private); }
 
 .card.multi {
   border-left: none;
@@ -233,6 +232,20 @@ header h1 {
   color: var(--private);
   background: var(--private-bg);
   border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 6px;
+  padding: 1px 5px;
+  margin-left: 6px;
+}
+
+/* Bi-weekly badge */
+.badge-biweekly {
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--nelly);
+  background: rgba(168, 125, 232, 0.15);
+  border: 1px solid rgba(168, 125, 232, 0.3);
   border-radius: 6px;
   padding: 1px 5px;
   margin-left: 6px;
@@ -425,6 +438,92 @@ header h1 {
   white-space: nowrap;
 }
 #sync-status.show { opacity: 1; }
+
+/* ── Manage overlay (sits below lesson modal so Add Class slides on top) ── */
+#manage-overlay { z-index: 150; }
+
+/* ── Secondary FAB (Manage) ── */
+.fab-secondary {
+  right: 88px;
+  font-size: 1.2rem;
+  background: var(--bg-surface);
+  color: var(--teal);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Manage modal ── */
+.modal-manage {
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 24px;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.modal-header h2 { margin-bottom: 0; }
+.btn-manage-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
+}
+.btn-manage-close:hover { color: var(--text); }
+
+.manage-list {
+  overflow-y: auto;
+  flex: 1;
+  margin: 4px -4px;
+  padding: 0 4px;
+}
+.manage-day-heading {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--teal);
+  margin: 12px 0 4px;
+}
+.manage-class-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.manage-class-row.removed { opacity: 0.45; }
+.manage-class-time {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--teal);
+  min-width: 52px;
+}
+.manage-class-name {
+  flex: 1;
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.manage-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: .8rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.manage-btn.remove  { color: #ff6666; background: rgba(200, 0, 0, 0.1); }
+.manage-btn.restore { color: var(--teal); background: var(--teal-glow); }
 
 /* ── Responsive tweaks ── */
 @media (min-width: 480px) {
