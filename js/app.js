@@ -21,6 +21,7 @@ let extraClasses     = {};   // user-added class names { key: { title } }
 let deletedBuiltins      = {};   // deleted built-in class names { key: 'ClassName' }
 let scheduleCancellations = {};  // hidden built-in slots { key: { day,start,title,fromDate } }
 let editingBuiltin       = null; // { day,start,title,children,end } when editing a built-in card
+let editingGroup         = null; // { childName: id, ... } when editing a grouped private card
 
 // ── Init Firebase ─────────────────────────────────────────────────
 function initFirebase() {
@@ -211,7 +212,7 @@ function renderDayView() {
     container.innerHTML = '<p class="empty">No lessons on this day.</p>';
     return;
   }
-  container.innerHTML = sortedLessons(lessons).map(l => cardHTML(l)).join('');
+  container.innerHTML = sortedLessons(groupLessons(lessons)).map(l => cardHTML(l)).join('');
   attachEditListeners(container);
 }
 
@@ -242,12 +243,13 @@ function getLessonsForDay(day, filterChild = null, weekDate = null) {
     .filter(l => {
       if (l.day !== day) return false;
       if (filterChild && !l.children.includes(filterChild)) return false;
-      if (weekMon) {
-        const cancelled = Object.values(scheduleCancellations).some(c =>
-          c.day === l.day && c.start === l.start && c.title === l.title && weekMon >= c.fromDate
-        );
-        if (cancelled) return false;
-      }
+      // In child view (weekMon=null) hide if any cancellation exists;
+      // in day view hide if cancellation covers the current week.
+      const cancelled = Object.values(scheduleCancellations).some(c =>
+        c.day === l.day && c.start === l.start && c.title === l.title &&
+        (!weekMon || weekMon >= c.fromDate)
+      );
+      if (cancelled) return false;
       return true;
     })
     .map(l => ({ ...l, isPrivate: false, builtinKey: `${l.day}|${l.start}|${l.title}` }));
@@ -303,7 +305,7 @@ function cardHTML(lesson, hideChildren = false) {
   const oneoffBadge   = (lesson.isPrivate && lesson.recurring === false && lesson.date)
     ? `<span class="badge-oneoff">📅 ${formatDate(lesson.date)}</span>` : '';
   const editBtn       = lesson.isPrivate
-    ? `<button class="btn-edit" data-id="${lesson.id}" title="Edit">✏️</button>`
+    ? `<button class="btn-edit" data-ids="${(lesson.ids || [lesson.id]).join(',')}" title="Edit">✏️</button>`
     : `<button class="btn-edit-builtin" data-builtin-key="${lesson.builtinKey}" title="Edit">✏️</button>`;
 
   return `
@@ -322,7 +324,10 @@ function cardHTML(lesson, hideChildren = false) {
 
 function attachEditListeners(container) {
   container.querySelectorAll('.btn-edit').forEach(btn => {
-    btn.addEventListener('click', () => openModal(btn.dataset.id));
+    btn.addEventListener('click', () => {
+      const ids = btn.dataset.ids.split(',').filter(Boolean);
+      openModal(ids);
+    });
   });
   container.querySelectorAll('.btn-edit-builtin').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -331,6 +336,26 @@ function attachEditListeners(container) {
       if (lesson) openModal(null, lesson);
     });
   });
+}
+
+// ── Group same-slot private lessons into one card ─────────────────
+// Only used in day view so that Nelly+Winnie added to same class merge visually.
+function groupLessons(lessons) {
+  const result = [];
+  const seen   = new Map(); // groupKey → index in result
+  for (const l of lessons) {
+    if (!l.isPrivate) { result.push(l); continue; }
+    const key = `${l.start}|${l.end}|${l.title}`;
+    if (seen.has(key)) {
+      const g = result[seen.get(key)];
+      g.children.push(l.children[0]);
+      g.ids.push(l.id);
+    } else {
+      seen.set(key, result.length);
+      result.push({ ...l, ids: [l.id] }); // ids array for multi-edit
+    }
+  }
+  return result;
 }
 
 // ── Class pool ────────────────────────────────────────────────────
@@ -409,13 +434,15 @@ function setLessonType(type) {
   }
 }
 
-function openModal(editId = null, builtinData = null) {
+// editIds = array of private lesson ids (1 = single edit, 2+ = group edit)
+function openModal(editIds = null, builtinData = null) {
   const overlay  = document.getElementById('modal-overlay');
   const titleEl  = document.getElementById('modal-title');
   const delBtn   = document.getElementById('btn-delete');
   const editIdEl = document.getElementById('edit-id');
 
   editingBuiltin = builtinData || null;
+  editingGroup   = null;
 
   if (builtinData) {
     // ── Editing a built-in SCHEDULE class ──
@@ -430,11 +457,12 @@ function openModal(editId = null, builtinData = null) {
     document.getElementById('p-date').value = '';
     setSelectedChildren(builtinData.children);
     delBtn.style.display = 'inline-block';
-  } else if (editId) {
-    // ── Editing an existing private lesson ──
-    const l = privateLesson[editId];
+
+  } else if (editIds && editIds.length) {
+    // ── Editing one or more private lessons ──
+    const firstId = editIds[0];
+    const l       = privateLesson[firstId];
     titleEl.textContent = 'Edit Lesson';
-    editIdEl.value      = editId;
     document.getElementById('p-day').value   = l.day;
     document.getElementById('p-start').value = l.start;
     const dur = calcDuration(l.start, l.end);
@@ -442,8 +470,23 @@ function openModal(editId = null, builtinData = null) {
     updateDescOptions(l.child, l.desc);
     setLessonType(l.recurring === false ? 'oneoff' : l.recurring === 'biweekly' ? 'biweekly' : 'weekly');
     document.getElementById('p-date').value = l.date || '';
-    setSelectedChildren([l.child]);
     delBtn.style.display = 'inline-block';
+
+    if (editIds.length > 1) {
+      // Group: build child→id map so we can update/remove individually
+      editingGroup = {};
+      editIds.forEach(id => {
+        const child = privateLesson[id]?.child;
+        if (child) editingGroup[child] = id;
+      });
+      editIdEl.value = '';
+      setSelectedChildren(Object.keys(editingGroup));
+    } else {
+      // Single lesson
+      editIdEl.value = firstId;
+      setSelectedChildren([l.child]);
+    }
+
   } else {
     // ── Adding a new lesson ──
     titleEl.textContent = 'Add Lesson';
@@ -462,6 +505,7 @@ function openModal(editId = null, builtinData = null) {
 
 function closeModal() {
   editingBuiltin = null;
+  editingGroup   = null;
   document.getElementById('modal-overlay').classList.remove('open');
 }
 
@@ -590,11 +634,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('p-start').innerHTML    = buildTimeOptions();
   document.getElementById('p-duration').innerHTML = buildDurationOptions();
 
-  // Child toggle buttons — multi-select when adding, single when editing a private lesson
+  // Child toggle buttons — single-select only when editing a lone private lesson
   document.querySelectorAll('.child-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const isPrivateEdit = !!document.getElementById('edit-id').value;
-      if (isPrivateEdit) {
+      const isSingleEdit = !editingBuiltin && !editingGroup &&
+                           !!document.getElementById('edit-id').value;
+      if (isSingleEdit) {
         setSelectedChildren([btn.dataset.child]);
       } else {
         btn.classList.toggle('active');
@@ -692,17 +737,31 @@ document.addEventListener('DOMContentLoaded', () => {
         closeModal();
         showSyncStatus('Class removed from this week onwards ✓');
       }
+    } else if (editingGroup) {
+      const groupIds   = Object.values(editingGroup);
+      const firstLesson = privateLesson[groupIds[0]];
+      const isOneoff   = firstLesson?.recurring === false;
+      const weekLabel  = formatWeekLabel(getMondayOfWeek(currentWeekOffset));
+      const msg = isOneoff
+        ? 'Delete these lessons?'
+        : `Stop these lessons from ${weekLabel} onwards?`;
+      if (confirm(msg)) {
+        groupIds.forEach(gid => {
+          const gl = privateLesson[gid];
+          if (gl?.recurring === false) deletePrivate(gid); else endPrivate(gid);
+        });
+        closeModal();
+        showSyncStatus(isOneoff ? 'Lessons deleted' : 'Lessons stopped from this week ✓');
+      }
     } else if (id) {
       const l = privateLesson[id];
       if (l.recurring === false) {
-        // One-off: hard delete
         if (confirm('Delete this lesson?')) {
           deletePrivate(id);
           closeModal();
           showSyncStatus('Lesson deleted');
         }
       } else {
-        // Recurring: soft delete from current week
         const weekLabel = formatWeekLabel(getMondayOfWeek(currentWeekOffset));
         if (confirm(`Stop this lesson from ${weekLabel} onwards?`)) {
           endPrivate(id);
@@ -736,6 +795,25 @@ document.addEventListener('DOMContentLoaded', () => {
         savePrivate({ child, day, start, end, desc, recurring: 'weekly', startDate: weekMon }, null);
       });
       editingBuiltin = null;
+
+    } else if (editingGroup) {
+      // Group edit: remove deselected children, update/create selected children
+      Object.entries(editingGroup).forEach(([child, gid]) => {
+        if (!selectedChildren.includes(child)) {
+          const gl = privateLesson[gid];
+          if (gl?.recurring === false) deletePrivate(gid); else endPrivate(gid);
+        }
+      });
+      selectedChildren.forEach(child => {
+        const existingId = editingGroup[child] || null;
+        const data = { child, day, start, end, desc,
+          recurring: isOneoff ? false : isBiweekly ? 'biweekly' : 'weekly' };
+        if (isOneoff) data.date = document.getElementById('p-date').value;
+        if (!isOneoff) data.startDate = (existingId && privateLesson[existingId]?.startDate) || weekMon;
+        savePrivate(data, existingId);
+      });
+      editingGroup = null;
+
     } else if (id) {
       // Edit existing private lesson (single child)
       const child = selectedChildren[0] || privateLesson[id]?.child;
@@ -744,6 +822,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (isOneoff) data.date = document.getElementById('p-date').value;
       if (!isOneoff) data.startDate = privateLesson[id]?.startDate || weekMon;
       savePrivate(data, id);
+
     } else {
       // Add new lesson — one record per selected child
       selectedChildren.forEach(child => {
