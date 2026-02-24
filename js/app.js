@@ -17,9 +17,7 @@ let currentDay       = 'Monday';
 let currentChild     = 'Aubree';
 let currentView      = 'day';
 let currentWeekOffset = 0;   // 0 = this week, -1 = last week, +1 = next week
-let classRemovals    = {};
-let manageChild      = 'Aubree';
-let isManageAdd      = false;
+let extraClasses     = {};   // user-added class names { key: { title } }
 
 // ── Init Firebase ─────────────────────────────────────────────────
 function initFirebase() {
@@ -36,8 +34,8 @@ function initFirebase() {
       firebaseReady = true;
       render();
     });
-    db.ref('removals').on('value', snapshot => {
-      classRemovals = snapshot.val() || {};
+    db.ref('extraClasses').on('value', snapshot => {
+      extraClasses = snapshot.val() || {};
       render();
     });
     showSyncStatus("Connected – lessons will sync live", 2500);
@@ -49,8 +47,8 @@ function initFirebase() {
 }
 
 function loadFromLocalStorage() {
-  try { privateLesson  = JSON.parse(localStorage.getItem('dance_privates')  || '{}'); } catch { privateLesson  = {}; }
-  try { classRemovals  = JSON.parse(localStorage.getItem('dance_removals')  || '{}'); } catch { classRemovals  = {}; }
+  try { privateLesson = JSON.parse(localStorage.getItem('dance_privates') || '{}'); } catch { privateLesson = {}; }
+  try { extraClasses  = JSON.parse(localStorage.getItem('dance_extra')    || '{}'); } catch { extraClasses  = {}; }
   render();
 }
 
@@ -58,8 +56,8 @@ function saveToLocalStorage() {
   localStorage.setItem('dance_privates', JSON.stringify(privateLesson));
 }
 
-function saveRemovalsToLocalStorage() {
-  localStorage.setItem('dance_removals', JSON.stringify(classRemovals));
+function saveExtraClassesToLocalStorage() {
+  localStorage.setItem('dance_extra', JSON.stringify(extraClasses));
 }
 
 // ── Display helpers ───────────────────────────────────────────────
@@ -217,15 +215,8 @@ function renderChildView() {
 // weekDate = specific Date object for this slot; null = no date filter (child view)
 function getLessonsForDay(day, filterChild = null, weekDate = null) {
   const fixed = SCHEDULE
-    .filter(l => l.day === day)
-    .map(l => {
-      const activeChildren = l.children.filter(c =>
-        (!filterChild || c === filterChild) &&
-        !isClassRemoved(c, l.day, l.title, l.start)
-      );
-      return activeChildren.length ? { ...l, children: activeChildren, isPrivate: false } : null;
-    })
-    .filter(Boolean);
+    .filter(l => l.day === day && (filterChild ? l.children.includes(filterChild) : true))
+    .map(l => ({ ...l, isPrivate: false }));
 
   const privs = Object.entries(privateLesson)
     .filter(([, l]) => {
@@ -251,7 +242,7 @@ function getLessonsForDay(day, filterChild = null, weekDate = null) {
       end:       l.end,
       title:     l.desc,
       children:  [l.child],
-      isPrivate: l.lessonType !== 'class',  // class additions show no Private badge
+      isPrivate: true,
       recurring: l.recurring,               // preserve 'weekly' | 'biweekly' | false
       date:      l.date || null,
     }));
@@ -295,42 +286,23 @@ function attachEditListeners(container) {
   });
 }
 
-// ── Class options per child ───────────────────────────────────────
-function getAllClassTitles() {
+// ── Class pool ────────────────────────────────────────────────────
+function getClassPool() {
   const titles = new Set();
   SCHEDULE.forEach(l => titles.add(l.title));
-  Object.values(privateLesson).forEach(l => { if (l.desc) titles.add(l.desc); });
-  return [...titles].sort();
-}
-
-function getClassesForChild(child) {
-  const titles = new Set();
-  SCHEDULE.forEach(l => { if (l.children.includes(child)) titles.add(l.title); });
+  Object.values(extraClasses).forEach(c => { if (c.title) titles.add(c.title); });
   return [...titles].sort();
 }
 
 function updateDescOptions(child, currentVal = '') {
   const sel     = document.getElementById('p-desc');
-  const classes = isManageAdd ? getAllClassTitles() : getClassesForChild(child);
+  const classes = getClassPool();
   const opts    = ['<option value="">Select class…</option>'];
   classes.forEach(t => opts.push(`<option value="${t}"${t === currentVal ? ' selected' : ''}>${t}</option>`));
-  if (isManageAdd) {
-    opts.push(`<option value="__new__">New class…</option>`);
-  }
-  if (currentVal && currentVal !== '__new__' && !classes.includes(currentVal)) {
+  if (currentVal && !classes.includes(currentVal)) {
     opts.push(`<option value="${currentVal}" selected>${currentVal}</option>`);
   }
   sel.innerHTML = opts.join('');
-  toggleCustomClassInput();
-}
-
-function toggleCustomClassInput() {
-  const isNew   = isManageAdd && document.getElementById('p-desc').value === '__new__';
-  const row     = document.getElementById('desc-custom-row');
-  const input   = document.getElementById('p-desc-custom');
-  row.style.display = isNew ? 'flex' : 'none';
-  input.required    = isNew;
-  if (!isNew) input.value = '';
 }
 
 // ── Modal ─────────────────────────────────────────────────────────
@@ -353,8 +325,7 @@ function setLessonType(type) {
   }
 }
 
-function openModal(editId = null, fromManage = false) {
-  isManageAdd = fromManage;
+function openModal(editId = null) {
   const overlay  = document.getElementById('modal-overlay');
   const titleEl  = document.getElementById('modal-title');
   const delBtn   = document.getElementById('btn-delete');
@@ -375,22 +346,16 @@ function openModal(editId = null, fromManage = false) {
     document.getElementById('p-date').value  = l.date || '';
     delBtn.style.display = 'inline-block';
   } else {
-    titleEl.textContent = fromManage ? 'Add Class' : 'Add Private Lesson';
+    titleEl.textContent = 'Add Private Lesson';
     editIdEl.value      = '';
     document.getElementById('private-form').reset();
     // Default duration to 1 hr
     document.getElementById('p-duration').value = '60';
     setLessonType('weekly');
     document.getElementById('p-date').value = '';
-    if (fromManage) {
-      document.getElementById('p-child').value = manageChild;
-      updateDescOptions(manageChild);
-    } else {
-      if (currentView === 'day')   document.getElementById('p-day').value   = currentDay;
-      if (currentView === 'child') document.getElementById('p-child').value = currentChild;
-      const defaultChild = currentView === 'child' ? currentChild : '';
-      updateDescOptions(defaultChild);
-    }
+    if (currentView === 'day')   document.getElementById('p-day').value   = currentDay;
+    if (currentView === 'child') document.getElementById('p-child').value = currentChild;
+    updateDescOptions();
     delBtn.style.display = 'none';
   }
   overlay.classList.add('open');
@@ -398,7 +363,6 @@ function openModal(editId = null, fromManage = false) {
 
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
-  isManageAdd = false;
 }
 
 // ── Firebase save / delete ────────────────────────────────────────
@@ -424,30 +388,26 @@ function deletePrivate(id) {
   }
 }
 
-// ── Class removal helpers ─────────────────────────────────────────
-function isClassRemoved(child, day, title, start) {
-  return Object.values(classRemovals).some(r =>
-    r.child === child && r.day === day && r.title === title && r.start === start
-  );
-}
-
-function addRemoval(child, day, title, start) {
-  const data = { child, day, title, start };
+// ── Extra class library helpers ───────────────────────────────────
+function addExtraClass(title) {
+  title = title.trim();
+  if (!title || getClassPool().includes(title)) return;
+  const data = { title };
   if (db) {
-    db.ref('removals').push().set(data).catch(console.error);
+    db.ref('extraClasses').push().set(data).catch(console.error);
   } else {
-    classRemovals['local_rem_' + Date.now()] = data;
-    saveRemovalsToLocalStorage();
+    extraClasses['local_ec_' + Date.now()] = data;
+    saveExtraClassesToLocalStorage();
     render();
   }
 }
 
-function deleteRemoval(id) {
+function deleteExtraClass(id) {
   if (db) {
-    db.ref(`removals/${id}`).remove().catch(console.error);
+    db.ref(`extraClasses/${id}`).remove().catch(console.error);
   } else {
-    delete classRemovals[id];
-    saveRemovalsToLocalStorage();
+    delete extraClasses[id];
+    saveExtraClassesToLocalStorage();
     render();
   }
 }
@@ -459,80 +419,42 @@ function showSyncStatus(msg, duration = 2000) {
   setTimeout(() => el.classList.remove('show'), duration);
 }
 
-// ── Manage Classes modal ──────────────────────────────────────────
+// ── Manage Class Library modal ────────────────────────────────────
 function renderManageModal() {
   const overlay = document.getElementById('manage-overlay');
   if (!overlay || !overlay.classList.contains('open')) return;
   const container = document.getElementById('manage-content');
 
-  const html = [];
-  for (const day of DAYS) {
-    const rows = [];
+  const extraTitles = new Map(
+    Object.entries(extraClasses).map(([id, c]) => [c.title, id])
+  );
+  const pool = getClassPool();
 
-    // SCHEDULE entries for this child
-    SCHEDULE
-      .filter(l => l.day === day && l.children.includes(manageChild))
-      .sort((a, b) => a.start.localeCompare(b.start))
-      .forEach(l => {
-        const remEntry = Object.entries(classRemovals).find(([, r]) =>
-          r.child === manageChild && r.day === l.day && r.title === l.title && r.start === l.start
-        );
-        const removalId = remEntry?.[0] || null;
-        const isRemoved = !!removalId;
-        rows.push(`
-          <div class="manage-class-row${isRemoved ? ' removed' : ''}">
-            <span class="manage-class-time">${fmt(l.start)}</span>
-            <span class="manage-class-name">${l.title}</span>
-            ${isRemoved
-              ? `<button class="manage-btn restore" data-removal-id="${removalId}" title="Restore">↩ Restore</button>`
-              : `<button class="manage-btn remove" data-sched-child="${manageChild}" data-sched-day="${l.day}" data-sched-title="${l.title}" data-sched-start="${l.start}" title="Remove">✕</button>`
-            }
-          </div>`);
-      });
-
-    // Custom class additions for this child (lessonType: 'class')
-    Object.entries(privateLesson)
-      .filter(([, l]) => l.child === manageChild && l.day === day && l.lessonType === 'class')
-      .sort(([, a], [, b]) => a.start.localeCompare(b.start))
-      .forEach(([id, l]) => {
-        rows.push(`
-          <div class="manage-class-row">
-            <span class="manage-class-time">${fmt(l.start)}</span>
-            <span class="manage-class-name">${l.desc}</span>
-            <button class="manage-btn remove" data-custom-id="${id}" title="Remove">✕</button>
-          </div>`);
-      });
-
-    if (!rows.length) continue;
-    html.push(`<div class="manage-day-heading">${day}</div>`);
-    html.push(...rows);
+  if (!pool.length) {
+    container.innerHTML = '<p class="empty">No classes defined yet.</p>';
+    return;
   }
 
-  container.innerHTML = html.length
-    ? html.join('')
-    : '<p class="empty">No classes for this child.</p>';
+  container.innerHTML = pool.map(title => {
+    const extraId = extraTitles.get(title);
+    return `
+      <div class="manage-class-row">
+        <span class="manage-class-name">${title}</span>
+        ${extraId
+          ? `<button class="manage-btn remove" data-extra-id="${extraId}" title="Remove">✕</button>`
+          : `<span class="manage-class-builtin" title="Built into schedule">📌</span>`
+        }
+      </div>`;
+  }).join('');
 
-  // Wire remove / restore buttons
   container.querySelectorAll('.manage-btn.remove').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (btn.dataset.customId) {
-        deletePrivate(btn.dataset.customId);
-      } else {
-        addRemoval(btn.dataset.schedChild, btn.dataset.schedDay, btn.dataset.schedTitle, btn.dataset.schedStart);
-      }
-    });
-  });
-  container.querySelectorAll('.manage-btn.restore').forEach(btn => {
-    btn.addEventListener('click', () => deleteRemoval(btn.dataset.removalId));
+    btn.addEventListener('click', () => deleteExtraClass(btn.dataset.extraId));
   });
 }
 
 function openManageModal() {
   document.getElementById('manage-overlay').classList.add('open');
-  // Sync active tab to manageChild
-  document.querySelectorAll('#manage-tabs .tab').forEach(t =>
-    t.classList.toggle('active', t.dataset.child === manageChild)
-  );
+  document.getElementById('new-class-input').value = '';
   renderManageModal();
 }
 
@@ -552,9 +474,6 @@ document.addEventListener('DOMContentLoaded', () => {
     updateDescOptions(document.getElementById('p-child').value);
   });
 
-  // Class dropdown → toggle "New class…" text input
-  document.getElementById('p-desc').addEventListener('change', toggleCustomClassInput);
-
   // Manage FAB
   document.getElementById('fab-manage').addEventListener('click', openManageModal);
 
@@ -566,18 +485,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Manage close button
   document.getElementById('btn-manage-close').addEventListener('click', closeManageModal);
 
-  // Manage child tabs
-  document.querySelectorAll('#manage-tabs .tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('#manage-tabs .tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      manageChild = tab.dataset.child;
-      renderManageModal();
-    });
+  // Add class via button or Enter key in the text input
+  function submitNewClass() {
+    const input = document.getElementById('new-class-input');
+    addExtraClass(input.value);
+    input.value = '';
+  }
+  document.getElementById('btn-add-class').addEventListener('click', submitNewClass);
+  document.getElementById('new-class-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); submitNewClass(); }
   });
-
-  // Add Class button inside manage modal
-  document.getElementById('btn-add-class').addEventListener('click', () => openModal(null, true));
 
   // Type toggle
   document.getElementById('type-weekly').addEventListener('click',   () => setLessonType('weekly'));
@@ -656,12 +573,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const start       = document.getElementById('p-start').value;
     const duration    = parseInt(document.getElementById('p-duration').value, 10);
     const end         = addMinutes(start, duration);
-    const rawDesc     = document.getElementById('p-desc').value;
-    const desc        = rawDesc === '__new__'
-                        ? document.getElementById('p-desc-custom').value.trim()
-                        : rawDesc;
+    const desc = document.getElementById('p-desc').value;
     if (!desc) return;
-    const wasManageAdd = isManageAdd;
     const data = {
       child:     document.getElementById('p-child').value,
       day:       document.getElementById('p-day').value,
@@ -670,13 +583,11 @@ document.addEventListener('DOMContentLoaded', () => {
       desc,
       recurring: isOneoff ? false : isBiweekly ? 'biweekly' : 'weekly',
     };
-    if (isOneoff)    data.date       = document.getElementById('p-date').value;
-    if (isBiweekly)  data.startDate  = (id && privateLesson[id]?.startDate)
-                                       || toDateStr(getMondayOfWeek(currentWeekOffset));
-    if (wasManageAdd) data.lessonType = 'class';
+    if (isOneoff)   data.date      = document.getElementById('p-date').value;
+    if (isBiweekly) data.startDate = (id && privateLesson[id]?.startDate)
+                                     || toDateStr(getMondayOfWeek(currentWeekOffset));
     savePrivate(data, id);
     closeModal();
-    if (wasManageAdd) renderManageModal();
     showSyncStatus(id ? 'Lesson updated ✓' : 'Lesson added ✓');
   });
 

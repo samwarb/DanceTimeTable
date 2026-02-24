@@ -94,10 +94,6 @@
           <select id="p-desc" required></select>
         </label>
 
-        <label id="desc-custom-row" style="display:none">Class name
-          <input type="text" id="p-desc-custom" placeholder="New class name" />
-        </label>
-
         <label>Type
           <div class="type-toggle">
             <button type="button" class="type-btn active" id="type-weekly">🔁 Weekly</button>
@@ -119,21 +115,17 @@
     </div>
   </div>
 
-  <!-- Manage Classes -->
+  <!-- Manage Class Library -->
   <div class="modal-overlay" id="manage-overlay">
     <div class="modal modal-manage">
       <div class="modal-header">
-        <h2>Manage Classes</h2>
+        <h2>Class Library</h2>
         <button type="button" class="btn-manage-close" id="btn-manage-close">✕</button>
       </div>
-      <div class="tab-bar" id="manage-tabs">
-        <button class="tab active aubree-tab" data-child="Aubree">Aubree</button>
-        <button class="tab nelly-tab" data-child="Nelly">Nelly</button>
-        <button class="tab winnie-tab" data-child="Winnie">Winnie</button>
-      </div>
       <div id="manage-content" class="manage-list"></div>
-      <div class="modal-actions" style="margin-top:12px">
-        <button type="button" class="btn-save" id="btn-add-class">＋ Add Class</button>
+      <div class="manage-add-row">
+        <input type="text" id="new-class-input" placeholder="New class name…" />
+        <button type="button" id="btn-add-class">Add</button>
       </div>
     </div>
   </div>
