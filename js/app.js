@@ -379,6 +379,30 @@ function updateDescOptions(child, currentVal = '') {
   sel.innerHTML = opts.join('');
 }
 
+// ── Clash detection ───────────────────────────────────────────────
+function detectClashes(day, start, end, children, excludeIds = [], excludeBuiltinKey = null, checkDate = null) {
+  const toMins = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+  const newS = toMins(start);
+  const newE = toMins(end);
+  const clashes = [];
+  const weekStart = getMondayOfWeek(currentWeekOffset);
+  const dayDate   = checkDate || getDateForDay(day, weekStart);
+
+  for (const child of children) {
+    const lessons = getLessonsForDay(day, child, dayDate);
+    for (const l of lessons) {
+      if (l.id         && excludeIds.includes(l.id))           continue;
+      if (l.builtinKey && l.builtinKey === excludeBuiltinKey) continue;
+      const lS = toMins(l.start);
+      const lE = toMins(l.end);
+      if (newS < lE && lS < newE) {
+        clashes.push({ child, title: l.title, start: l.start, end: l.end });
+      }
+    }
+  }
+  return clashes;
+}
+
 // ── Child selection helpers ───────────────────────────────────────
 function setSelectedChildren(children) {
   document.querySelectorAll('.child-btn').forEach(btn => {
@@ -518,9 +542,9 @@ function savePrivate(data, id = null) {
   if (db) {
     const ref = id ? db.ref(`privates/${id}`) : db.ref('privates').push();
     ref.set(data).catch(console.error);
-    // Optimistic local update so the UI refreshes before Firebase round-trips
-    const key = id || ('_pending_' + Date.now());
-    privateLesson[key] = data;
+    // Use ref.key (Firebase's own key) for the optimistic update — guaranteed unique,
+    // so calling twice in the same JS tick doesn't clobber the first entry.
+    privateLesson[ref.key] = data;
     render();
   } else {
     const key = id || ('local_' + Date.now());
@@ -796,6 +820,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!desc || !selectedChildren.length) return;
 
     const weekMon = toDateStr(getMondayOfWeek(currentWeekOffset));
+
+    // ── Clash check ──────────────────────────────────────────────
+    const excludeIds     = editingGroup   ? Object.values(editingGroup) : (id ? [id] : []);
+    const excludeKey     = editingBuiltin
+      ? `${editingBuiltin.day}|${editingBuiltin.start}|${editingBuiltin.title}` : null;
+    const checkDate      = isOneoff
+      ? new Date(document.getElementById('p-date').value + 'T00:00:00') : null;
+    const clashes        = detectClashes(day, start, end, selectedChildren, excludeIds, excludeKey, checkDate);
+    if (clashes.length) {
+      const msgs = clashes.map(c =>
+        `• ${c.child}: clashes with "${c.title}" (${fmt(c.start)}–${fmt(c.end)})`
+      ).join('\n');
+      if (!confirm(`⚠️ Time clash detected:\n\n${msgs}\n\nSave anyway?`)) return;
+    }
 
     if (editingBuiltin) {
       // Cancel the built-in from this week and replace with new private lessons
