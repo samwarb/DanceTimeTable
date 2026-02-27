@@ -263,8 +263,9 @@ function getLessonsForDay(day, filterChild = null, weekDate = null) {
         return l.date === toDateStr(weekDate);
       }
       // Recurring (weekly or biweekly)
+      // Hide if soft-deleted — in child view hide entirely, in day view hide from endDate onwards
+      if (l.endDate && (weekMon === null || weekMon >= l.endDate)) return false;
       if (weekMon !== null) {
-        if (l.endDate && weekMon >= l.endDate) return false;    // soft-deleted from this week
         if (l.startDate) {
           if (weekMon < l.startDate) return false;              // not started yet
           if (l.recurring === 'biweekly') {
