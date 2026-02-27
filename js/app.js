@@ -406,12 +406,15 @@ function cancelBuiltin(day, start, title) {
 // ── Soft-delete a recurring private lesson from the current viewed week ──
 function endPrivate(id) {
   const endDate = toDateStr(getMondayOfWeek(currentWeekOffset));
+  // Optimistic local update — apply immediately, Firebase write follows
+  if (privateLesson[id]) {
+    privateLesson[id] = { ...privateLesson[id], endDate };
+    render();
+  }
   if (db) {
     db.ref(`privates/${id}/endDate`).set(endDate).catch(console.error);
   } else {
-    privateLesson[id].endDate = endDate;
     saveToLocalStorage();
-    render();
   }
 }
 
@@ -515,6 +518,10 @@ function savePrivate(data, id = null) {
   if (db) {
     const ref = id ? db.ref(`privates/${id}`) : db.ref('privates').push();
     ref.set(data).catch(console.error);
+    // Optimistic local update so the UI refreshes before Firebase round-trips
+    const key = id || ('_pending_' + Date.now());
+    privateLesson[key] = data;
+    render();
   } else {
     const key = id || ('local_' + Date.now());
     privateLesson[key] = data;
@@ -524,12 +531,13 @@ function savePrivate(data, id = null) {
 }
 
 function deletePrivate(id) {
+  // Optimistic local update — remove immediately, Firebase write follows
+  delete privateLesson[id];
+  render();
   if (db) {
     db.ref(`privates/${id}`).remove().catch(console.error);
   } else {
-    delete privateLesson[id];
     saveToLocalStorage();
-    render();
   }
 }
 
