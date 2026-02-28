@@ -112,6 +112,18 @@ header h1 {
   transition: background .15s;
 }
 .week-btn:active { background: var(--teal-glow); }
+.week-today-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--teal);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.week-today-btn:active { background: var(--teal-glow); }
 .week-label {
   font-size: .9rem;
   font-weight: 700;

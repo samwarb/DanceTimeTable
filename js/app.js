@@ -393,9 +393,10 @@ function detectClashes(day, start, end, children, excludeIds = [], excludeBuilti
     for (const l of lessons) {
       if (l.id         && excludeIds.includes(l.id))           continue;
       if (l.builtinKey && l.builtinKey === excludeBuiltinKey) continue;
+      if (!l.start || !l.end) continue;
       const lS = toMins(l.start);
       const lE = toMins(l.end);
-      if (newS < lE && lS < newE) {
+      if (lS < newE && newS < lE) {
         clashes.push({ child, title: l.title, start: l.start, end: l.end });
       }
     }
@@ -716,6 +717,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('week-next').addEventListener('click', () => {
     currentWeekOffset++;
+    updateWeekUI();
+    renderDayView();
+  });
+  document.getElementById('week-today').addEventListener('click', () => {
+    currentWeekOffset = 0;
+    const todayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()];
+    currentDay = todayName;
+    document.querySelectorAll('#day-tabs .tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.day === currentDay);
+    });
     updateWeekUI();
     renderDayView();
   });
