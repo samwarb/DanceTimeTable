@@ -299,9 +299,10 @@ header h1 {
 .child-btn.nelly-btn.active  { background: var(--nelly);  border-color: var(--nelly);  color: #fff; }
 .child-btn.winnie-btn.active { background: var(--winnie); border-color: var(--winnie); color: #0a0a14; }
 
-/* Edit button (private lessons and built-in) */
+/* Edit button (private lessons and built-in) — hidden until edit mode */
 .btn-edit,
 .btn-edit-builtin {
+  display: none;
   background: none;
   border: none;
   cursor: pointer;
@@ -314,6 +315,95 @@ header h1 {
 }
 .btn-edit:hover,
 .btn-edit-builtin:hover { color: var(--teal); }
+
+/* ── Edit mode ── */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25%       { transform: rotate(-1.2deg); }
+  75%       { transform: rotate(1.2deg); }
+}
+
+body.edit-mode .card {
+  animation: wiggle 0.45s ease-in-out infinite;
+  cursor: pointer;
+}
+body.edit-mode .card:nth-child(2n)   { animation-delay: 0.12s; }
+body.edit-mode .card:nth-child(3n)   { animation-delay: 0.06s; }
+body.edit-mode .card:nth-child(4n)   { animation-delay: 0.18s; }
+
+body.edit-mode .btn-edit,
+body.edit-mode .btn-edit-builtin {
+  display: block;
+}
+
+/* FAB in edit mode shows Done */
+.fab-manage.done-mode {
+  background: var(--teal);
+  color: #0a0a14;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* ── Settings action sheet ── */
+.settings-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .6);
+  z-index: 180;
+  align-items: flex-end;
+  justify-content: center;
+}
+.settings-overlay.open { display: flex; }
+
+.settings-sheet {
+  width: 100%;
+  max-width: 480px;
+  padding: 8px 12px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: slideUp .2s ease;
+}
+
+.settings-sheet-options {
+  background: var(--bg-surface);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.settings-item {
+  display: block;
+  width: 100%;
+  padding: 16px 20px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s;
+}
+.settings-item:last-child { border-bottom: none; }
+.settings-item:active { background: var(--teal-glow); }
+
+.settings-cancel {
+  width: 100%;
+  padding: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--text-muted);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+}
+.settings-cancel:active { background: var(--teal-glow); }
 
 /* Empty state */
 .empty { text-align: center; padding: 32px 16px; color: var(--text-muted); font-size: .95rem; }

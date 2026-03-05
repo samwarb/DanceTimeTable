@@ -22,6 +22,7 @@ let deletedBuiltins      = {};   // deleted built-in class names { key: 'ClassNa
 let scheduleCancellations = {};  // hidden built-in slots { key: { day,start,title,fromDate } }
 let editingBuiltin       = null; // { day,start,title,children,end } when editing a built-in card
 let editingGroup         = null; // { childName: id, ... } when editing a grouped private card
+let isEditMode           = false;
 
 // ── Init Firebase ─────────────────────────────────────────────────
 function initFirebase() {
@@ -661,6 +662,31 @@ function closeManageModal() {
   document.getElementById('manage-overlay').classList.remove('open');
 }
 
+// ── Settings action sheet ──────────────────────────────────────────
+function openSettings() {
+  document.getElementById('settings-overlay').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+
+function enterEditMode() {
+  isEditMode = true;
+  document.body.classList.add('edit-mode');
+  const fab = document.getElementById('fab-manage');
+  fab.textContent = 'Done';
+  fab.classList.add('done-mode');
+}
+
+function exitEditMode() {
+  isEditMode = false;
+  document.body.classList.remove('edit-mode');
+  const fab = document.getElementById('fab-manage');
+  fab.textContent = '⚙';
+  fab.classList.remove('done-mode');
+}
+
 // ── Event wiring ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -682,8 +708,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Manage FAB
-  document.getElementById('fab-manage').addEventListener('click', openManageModal);
+  // Settings / Manage FAB — toggles edit mode if active, else opens settings
+  document.getElementById('fab-manage').addEventListener('click', () => {
+    if (isEditMode) exitEditMode();
+    else openSettings();
+  });
+
+  // Settings overlay: close on backdrop click
+  document.getElementById('settings-overlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeSettings();
+  });
+
+  // Settings items
+  document.getElementById('settings-edit').addEventListener('click', () => {
+    closeSettings();
+    enterEditMode();
+  });
+  document.getElementById('settings-library').addEventListener('click', () => {
+    closeSettings();
+    openManageModal();
+  });
+  document.getElementById('settings-cancel').addEventListener('click', closeSettings);
 
   // Manage overlay: close on backdrop click
   document.getElementById('manage-overlay').addEventListener('click', e => {
