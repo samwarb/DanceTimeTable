@@ -196,8 +196,10 @@ function render() {
 
 function updateWeekUI() {
   const weekStart = getMondayOfWeek(currentWeekOffset);
-  document.getElementById('week-label').textContent = formatWeekLabel(weekStart);
-  // Update each tab label to show "Mon 23" etc.
+  const label = formatWeekLabel(weekStart);
+  document.getElementById('week-label').textContent = label;
+  document.getElementById('child-week-label').textContent = label;
+  // Update each day tab label to show "Mon 23" etc.
   document.querySelectorAll('#day-tabs .tab').forEach(tab => {
     const date = getDateForDay(tab.dataset.day, weekStart);
     tab.textContent = `${tab.dataset.day.slice(0, 3)} ${date.getDate()}`;
@@ -219,16 +221,17 @@ function renderDayView() {
 
 function renderChildView() {
   const container = document.getElementById('child-content');
+  const weekStart = getMondayOfWeek(currentWeekOffset);
   const html = [];
   for (const day of DAYS) {
-    // Child view shows recurring + all one-offs (no week filter — let user see them all)
-    const lessons = getLessonsForDay(day, currentChild, null);
+    const dayDate = getDateForDay(day, weekStart);
+    const lessons = getLessonsForDay(day, currentChild, dayDate);
     if (!lessons.length) continue;
-    html.push(`<div class="day-heading">${day}</div>`);
-    html.push(...sortedLessons(lessons).map(l => cardHTML(l, true)));
+    html.push(`<div class="day-heading">${day} ${dayDate.getDate()}/${dayDate.getMonth() + 1}</div>`);
+    html.push(...sortedLessons(groupLessons(lessons)).map(l => cardHTML(l, true)));
   }
   if (!html.length) {
-    container.innerHTML = '<p class="empty">No lessons found.</p>';
+    container.innerHTML = '<p class="empty">No lessons this week.</p>';
     return;
   }
   container.innerHTML = html.join('');
@@ -761,7 +764,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('type-biweekly').addEventListener('click', () => setLessonType('biweekly'));
   document.getElementById('type-oneoff').addEventListener('click',   () => setLessonType('oneoff'));
 
-  // Week navigation
+  // Week navigation (day view)
   document.getElementById('week-prev').addEventListener('click', () => {
     currentWeekOffset--;
     updateWeekUI();
@@ -781,6 +784,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     updateWeekUI();
     renderDayView();
+  });
+
+  // Week navigation (child view)
+  document.getElementById('child-week-prev').addEventListener('click', () => {
+    currentWeekOffset--;
+    updateWeekUI();
+    renderChildView();
+  });
+  document.getElementById('child-week-next').addEventListener('click', () => {
+    currentWeekOffset++;
+    updateWeekUI();
+    renderChildView();
+  });
+  document.getElementById('child-week-today').addEventListener('click', () => {
+    currentWeekOffset = 0;
+    updateWeekUI();
+    renderChildView();
   });
 
   // View toggle
