@@ -196,8 +196,10 @@ function render() {
 
 function updateWeekUI() {
   const weekStart = getMondayOfWeek(currentWeekOffset);
-  document.getElementById('week-label').textContent = formatWeekLabel(weekStart);
-  // Update each tab label to show "Mon 23" etc.
+  const label = formatWeekLabel(weekStart);
+  document.getElementById('week-label').textContent = label;
+  document.getElementById('child-week-label').textContent = label;
+  // Update each day tab label to show "Mon 23" etc.
   document.querySelectorAll('#day-tabs .tab').forEach(tab => {
     const date = getDateForDay(tab.dataset.day, weekStart);
     tab.textContent = `${tab.dataset.day.slice(0, 3)} ${date.getDate()}`;
@@ -219,16 +221,17 @@ function renderDayView() {
 
 function renderChildView() {
   const container = document.getElementById('child-content');
+  const weekStart = getMondayOfWeek(currentWeekOffset);
   const html = [];
   for (const day of DAYS) {
-    // Child view shows recurring + all one-offs (no week filter — let user see them all)
-    const lessons = getLessonsForDay(day, currentChild, null);
+    const dayDate = getDateForDay(day, weekStart);
+    const lessons = getLessonsForDay(day, currentChild, dayDate);
     if (!lessons.length) continue;
-    html.push(`<div class="day-heading">${day}</div>`);
-    html.push(...sortedLessons(lessons).map(l => cardHTML(l, true)));
+    html.push(`<div class="day-heading">${day} ${dayDate.getDate()}/${dayDate.getMonth() + 1}</div>`);
+    html.push(...sortedLessons(groupLessons(lessons)).map(l => cardHTML(l, true)));
   }
   if (!html.length) {
-    container.innerHTML = '<p class="empty">No lessons found.</p>';
+    container.innerHTML = '<p class="empty">No lessons this week.</p>';
     return;
   }
   container.innerHTML = html.join('');
@@ -289,6 +292,7 @@ function getLessonsForDay(day, filterChild = null, weekDate = null) {
       isPrivate: true,
       recurring: l.recurring,
       date:      l.date || null,
+      notes:     l.notes || null,
     }));
 
   return [...fixed, ...privs];
@@ -306,6 +310,8 @@ function cardHTML(lesson, hideChildren = false) {
     ? `<span class="badge-biweekly">Bi-weekly</span>` : '';
   const oneoffBadge   = (lesson.isPrivate && lesson.recurring === false && lesson.date)
     ? `<span class="badge-oneoff">📅 ${formatDate(lesson.date)}</span>` : '';
+  const notesHTML     = lesson.notes
+    ? `<div class="card-notes">${lesson.notes}</div>` : '';
   const editBtn       = lesson.isPrivate
     ? `<button class="btn-edit" data-ids="${(lesson.ids || [lesson.id]).join(',')}" title="Edit">✏️</button>`
     : `<button class="btn-edit-builtin" data-builtin-key="${lesson.builtinKey}" title="Edit">✏️</button>`;
@@ -319,6 +325,7 @@ function cardHTML(lesson, hideChildren = false) {
     <div class="card-body">
       <div class="card-title">${lesson.title}${biweeklyBadge}${oneoffBadge}</div>
       ${pills}
+      ${notesHTML}
     </div>
     ${editBtn}
   </div>`;
@@ -484,7 +491,8 @@ function openModal(editIds = null, builtinData = null) {
     document.getElementById('p-duration').value = String(dur);
     updateDescOptions('', builtinData.title);
     setLessonType('weekly');
-    document.getElementById('p-date').value = '';
+    document.getElementById('p-date').value  = '';
+    document.getElementById('p-notes').value = '';
     setSelectedChildren(builtinData.children);
     delBtn.style.display = 'inline-block';
 
@@ -499,7 +507,8 @@ function openModal(editIds = null, builtinData = null) {
     document.getElementById('p-duration').value = String(dur);
     updateDescOptions(l.child, l.desc);
     setLessonType(l.recurring === false ? 'oneoff' : l.recurring === 'biweekly' ? 'biweekly' : 'weekly');
-    document.getElementById('p-date').value = l.date || '';
+    document.getElementById('p-date').value  = l.date  || '';
+    document.getElementById('p-notes').value = l.notes || '';
     delBtn.style.display = 'inline-block';
 
     if (editIds.length > 1) {
@@ -524,7 +533,8 @@ function openModal(editIds = null, builtinData = null) {
     document.getElementById('private-form').reset();
     document.getElementById('p-duration').value = '60';
     setLessonType('weekly');
-    document.getElementById('p-date').value = '';
+    document.getElementById('p-date').value  = '';
+    document.getElementById('p-notes').value = '';
     if (currentView === 'day')   document.getElementById('p-day').value = currentDay;
     setSelectedChildren(currentView === 'child' ? [currentChild] : []);
     updateDescOptions();
@@ -754,7 +764,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('type-biweekly').addEventListener('click', () => setLessonType('biweekly'));
   document.getElementById('type-oneoff').addEventListener('click',   () => setLessonType('oneoff'));
 
-  // Week navigation
+  // Week navigation (day view)
   document.getElementById('week-prev').addEventListener('click', () => {
     currentWeekOffset--;
     updateWeekUI();
@@ -774,6 +784,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     updateWeekUI();
     renderDayView();
+  });
+
+  // Week navigation (child view)
+  document.getElementById('child-week-prev').addEventListener('click', () => {
+    currentWeekOffset--;
+    updateWeekUI();
+    renderChildView();
+  });
+  document.getElementById('child-week-next').addEventListener('click', () => {
+    currentWeekOffset++;
+    updateWeekUI();
+    renderChildView();
+  });
+  document.getElementById('child-week-today').addEventListener('click', () => {
+    currentWeekOffset = 0;
+    updateWeekUI();
+    renderChildView();
   });
 
   // View toggle
@@ -876,6 +903,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!desc || !selectedChildren.length) return;
 
     const weekMon = toDateStr(getMondayOfWeek(currentWeekOffset));
+    const notes   = document.getElementById('p-notes').value.trim() || null;
 
     // ── Clash check ──────────────────────────────────────────────
     const excludeIds     = editingGroup   ? Object.values(editingGroup) : (id ? [id] : []);
@@ -895,7 +923,9 @@ document.addEventListener('DOMContentLoaded', () => {
       // Cancel the built-in from this week and replace with new private lessons
       cancelBuiltin(editingBuiltin.day, editingBuiltin.start, editingBuiltin.title);
       selectedChildren.forEach(child => {
-        savePrivate({ child, day, start, end, desc, recurring: 'weekly', startDate: weekMon }, null);
+        const data = { child, day, start, end, desc, recurring: 'weekly', startDate: weekMon };
+        if (notes) data.notes = notes;
+        savePrivate(data, null);
       });
       editingBuiltin = null;
 
@@ -913,6 +943,7 @@ document.addEventListener('DOMContentLoaded', () => {
           recurring: isOneoff ? false : isBiweekly ? 'biweekly' : 'weekly' };
         if (isOneoff) data.date = document.getElementById('p-date').value;
         if (!isOneoff) data.startDate = (existingId && privateLesson[existingId]?.startDate) || weekMon;
+        if (notes) data.notes = notes;
         savePrivate(data, existingId);
       });
       editingGroup = null;
@@ -924,6 +955,7 @@ document.addEventListener('DOMContentLoaded', () => {
         recurring: isOneoff ? false : isBiweekly ? 'biweekly' : 'weekly' };
       if (isOneoff) data.date = document.getElementById('p-date').value;
       if (!isOneoff) data.startDate = privateLesson[id]?.startDate || weekMon;
+      if (notes) data.notes = notes;
       savePrivate(data, id);
 
     } else {
@@ -933,6 +965,7 @@ document.addEventListener('DOMContentLoaded', () => {
           recurring: isOneoff ? false : isBiweekly ? 'biweekly' : 'weekly' };
         if (isOneoff) data.date = document.getElementById('p-date').value;
         if (!isOneoff) data.startDate = weekMon;
+        if (notes) data.notes = notes;
         savePrivate(data, null);
       });
     }

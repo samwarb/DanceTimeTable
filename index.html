@@ -42,6 +42,12 @@
 
   <!-- ── BY CHILD VIEW ── -->
   <div id="view-child" class="view">
+    <div class="week-nav">
+      <button class="week-btn" id="child-week-prev">&#8249;</button>
+      <span class="week-label" id="child-week-label">w/c …</span>
+      <button class="week-today-btn" id="child-week-today">Today</button>
+      <button class="week-btn" id="child-week-next">&#8250;</button>
+    </div>
     <div class="tab-bar" id="child-tabs">
       <button class="tab active aubree-tab" data-child="Aubree">Aubree</button>
       <button class="tab nelly-tab" data-child="Nelly">Nelly</button>
@@ -92,6 +98,10 @@
 
         <label>Class
           <select id="p-desc" required></select>
+        </label>
+
+        <label>Notes
+          <textarea id="p-notes" rows="2" placeholder="Optional notes…"></textarea>
         </label>
 
         <label>Type
